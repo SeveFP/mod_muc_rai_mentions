@@ -19,10 +19,10 @@ local interested_users = {};
 local room_activity_cache = cache.new(1024);
 
 -- Send a single notification for a room, updating data structures as needed
-local function send_single_notification(user_jid, room_jid)
+local function send_single_notification(user_jid, room_jid, mention)
 	local notification = st.message({ to = user_jid, from = module.host })
 		:tag("rai", { xmlns = xmlns_rai })
-			:text_tag("activity", room_jid)
+			:text_tag("activity", room_jid, {mention = mention and true or nil})
 		:up();
 	local interested_room_users = interested_users[room_jid];
 	if interested_room_users then
@@ -34,6 +34,20 @@ local function send_single_notification(user_jid, room_jid)
 	end
 	module:log("debug", "Sending notification from %s to %s", room_jid, user_jid);
 	return module:send(notification);
+end
+
+local function get_client_mentions(stanza)
+	local has_mentions = false
+	local client_mentions = {}
+
+	for element in stanza:childtags("reference", reference_xmlns) do
+		if element.attr.type == "mention" then
+			client_mentions[element.attr.uri] = element.attr.uri
+			has_mentions = true
+		end
+	end
+
+	return has_mentions, client_mentions
 end
 
 local function subscribe_room(user_jid, room_jid)
@@ -68,7 +82,7 @@ local function unsubscribe_room(user_jid, room_jid)
 	return true;
 end
 
-local function notify_interested_users(room_jid)
+local function notify_interested_users(room_jid, client_mentions)
 	module:log("warn", "NOTIFYING FOR %s", room_jid)
 	local interested_room_users = interested_users[room_jid];
 	if not interested_room_users then
@@ -76,7 +90,8 @@ local function notify_interested_users(room_jid)
 		return;
 	end
 	for user_jid in pairs(interested_room_users) do
-		send_single_notification(user_jid, room_jid);
+		local mention = client_mentions[user_jid]
+		send_single_notification(user_jid, room_jid, mention);
 	end
 	return true;
 end
@@ -226,7 +241,12 @@ module:hook("muc-broadcast-message", function (event)
 		-- to the per-user marker (managed by mod_muc_markers)
 		update_room_activity(room.jid, archive_id.attr.id);
 		-- Notify any users that need to be notified
-		notify_interested_users(room.jid);
+		local has_mentions, client_mentions = get_client_mentions(stanza)
+		if has_mentions then
+			notify_interested_users(room.jid, client_mentions);
+		else
+			notify_interested_users(room.jid);
+		end
 	end
 end, -1);
 
