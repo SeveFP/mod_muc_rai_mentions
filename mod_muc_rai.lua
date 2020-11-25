@@ -241,12 +241,8 @@ module:hook("muc-broadcast-message", function (event)
 		-- to the per-user marker (managed by mod_muc_markers)
 		update_room_activity(room.jid, archive_id.attr.id);
 		-- Notify any users that need to be notified
-		local has_mentions, client_mentions = get_client_mentions(stanza)
-		if has_mentions then
-			notify_interested_users(room.jid, client_mentions);
-		else
-			notify_interested_users(room.jid);
-		end
+		local _, client_mentions = get_client_mentions(stanza)
+		notify_interested_users(room.jid, client_mentions);
 	end
 end, -1);
 
