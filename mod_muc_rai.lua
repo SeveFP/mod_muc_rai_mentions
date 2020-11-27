@@ -8,6 +8,7 @@ local muc_affiliation_store = module:open_store("config", "map");
 local muc_archive = module:open_store("muc_log", "archive");
 
 local xmlns_rai = "xmpp:prosody.im/protocol/rai";
+local reference_xmlns = "urn:xmpp:reference:0"
 
 local muc_markers = module:depends("muc_markers");
 
